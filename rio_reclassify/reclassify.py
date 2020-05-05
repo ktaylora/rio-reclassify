@@ -10,9 +10,13 @@ from rasterio.transform import guard_transform
 from .utils import cs_forward, cs_backward
 import multiprocessing
 
+SETTINGS = {
+    'THREAD_COUNT': round(multiprocessing.cpu_count() * 0.75)
+}
+
 def arbitrary_window_size(src_image, k=15):
     """
-    build an arbitrary window size that will chunk
+    pick an arbitrary window size that will chunk
     a raster into ~k equal blocks
     """
     def even(step=1):
@@ -68,9 +72,9 @@ def reclassify_window(src_image, window, table, field, band=1):
     return result
 
 
-def reclassify(src_image, table, field="di", band=1, dst_image=None):
+def reclassify(src_image, table, field, band=1, dst_image=None):
 
-    pool = multiprocessing.Pool(4)
+    pool = multiprocessing.Pool(SETTINGS['THREAD_COUNT'])
 
     windows = [ w[1] for w in list(rio.open(src_image).block_windows(band, window=arbitrary_window_size(src_image))) ]
 
@@ -86,7 +90,7 @@ def reclassify(src_image, table, field="di", band=1, dst_image=None):
             width=rio.open(src_image).width,
             height=rio.open(src_image).height,
             count=1,
-            dtype=rio.open(src_image).dtypes[0],
+            dtype=rio.open(src_image).dtypes[band-1],
         ) as dst:
             for i in range(results):
                 dst.write(results[i], window=windows[i], indexes=1)
